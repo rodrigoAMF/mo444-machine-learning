@@ -12,4 +12,4 @@ conda activate MO443
 pip install -r requirements.txt
 ```
 
-Once these commands are executed, it is possible to run the project notebook. For more details, please see "Project 1.html" or "Project 1.ipynb".
+Once these commands are executed, it is possible to run the project notebook. For more details, please see [project_1.html](project_1.html) or [project_1.ipynb](project_1.ipynb).
