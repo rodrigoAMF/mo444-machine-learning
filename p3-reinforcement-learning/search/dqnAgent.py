@@ -51,7 +51,7 @@ class DQNAgent(Agent):
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
+        self.memory = ReplayBuffer(state_size, action_size, BUFFER_SIZE, BATCH_SIZE, seed)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
 
@@ -138,7 +138,7 @@ class DQNAgent(Agent):
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, state_size, action_size, buffer_size, batch_size, seed):
         """Initialize a ReplayBuffer object.
         Params
         ======
@@ -147,6 +147,7 @@ class ReplayBuffer:
             batch_size (int): size of each training batch
             seed (int): random seed
         """
+        self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
@@ -162,11 +163,17 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
+        states = np.vstack([e.state for e in experiences if e is not None])
+        next_states = np.vstack([e.next_state for e in experiences if e is not None])
+        if self.state_size[0] == 1:
+            states = np.expand_dims(states, axis=1)
+            next_states = np.expand_dims(next_states, axis=1)
+        states = torch.from_numpy(states).float().to(device)
+        next_states = torch.from_numpy(next_states).float().to(device)
+
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(
-            device)
+
         dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(
             device)
 
