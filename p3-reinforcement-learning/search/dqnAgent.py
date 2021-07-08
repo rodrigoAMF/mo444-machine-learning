@@ -9,15 +9,24 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from game import Agent
+from pacman import Directions
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 128  # minibatch size
+BATCH_SIZE = 64  # minibatch size
 GAMMA = 0.99  # discount factor
 TAU = 1e-3  # for soft update of target parameters
-LR = 1e-4  # learning rate
+LR = 5e-4  # learning rate
 UPDATE_EVERY = 8  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+action_to_direction = {
+    1: Directions.NORTH,
+    2: Directions.SOUTH,
+    3: Directions.EAST,
+    4: Directions.WEST,
+    0: Directions.STOP
+}
 
 
 class DQNAgent(Agent):
@@ -58,7 +67,7 @@ class DQNAgent(Agent):
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
-    def getAction(self, state, eps=0.):
+    def getAction(self, state, legal, eps=0.):
         """Returns actions for given state as per current policy.
 
         Params
@@ -66,6 +75,7 @@ class DQNAgent(Agent):
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
+
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
@@ -74,9 +84,16 @@ class DQNAgent(Agent):
 
         # Epsilon-greedy action selection
         if random.random() > eps:
-            return np.argmax(action_values.cpu().data.numpy())
+            action = np.argmax(action_values.cpu().data.numpy())
         else:
-            return random.choice(np.arange(self.action_size))
+            action = random.choice(np.arange(self.action_size))
+
+        action_as_direction = action_to_direction[action]
+
+        if not action_as_direction in legal:
+            return Directions.STOP
+        else:
+            return action_as_direction
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
