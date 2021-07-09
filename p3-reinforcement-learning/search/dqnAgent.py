@@ -12,20 +12,28 @@ from game import Agent
 from pacman import Directions
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64  # minibatch size
+BATCH_SIZE = 128  # minibatch size
 GAMMA = 0.99  # discount factor
 TAU = 1e-3  # for soft update of target parameters
 LR = 5e-4  # learning rate
-UPDATE_EVERY = 8  # how often to update the network
+UPDATE_EVERY = 4  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 action_to_direction = {
-    1: Directions.NORTH,
-    2: Directions.SOUTH,
-    3: Directions.EAST,
-    4: Directions.WEST,
-    0: Directions.STOP
+    0: Directions.NORTH,
+    1: Directions.SOUTH,
+    2: Directions.EAST,
+    3: Directions.WEST,
+    4: Directions.STOP
+}
+
+direction_to_action = {
+    Directions.NORTH: 0,
+    Directions.SOUTH: 1,
+    Directions.EAST: 2,
+    Directions.WEST: 3,
+    Directions.STOP: 4
 }
 
 
@@ -67,7 +75,7 @@ class DQNAgent(Agent):
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
-    def getAction(self, state, legal, eps=0.):
+    def getAction(self, state, legal_actions, eps=0.):
         """Returns actions for given state as per current policy.
 
         Params
@@ -84,16 +92,16 @@ class DQNAgent(Agent):
 
         # Epsilon-greedy action selection
         if random.random() > eps:
-            action = np.argmax(action_values.cpu().data.numpy())
+            action_values = action_values.cpu().data.numpy()[0] # Action values from Neural Network
+            legal_actions = np.array([direction_to_action[action] for action in legal_actions]) # Possible action in the current state as number
+            possible_actions = action_values[legal_actions] # Values of legal actions
+            best_action_index = np.argmax(possible_actions)
+            action = legal_actions[best_action_index]
+            action = action_to_direction[action]
         else:
-            action = random.choice(np.arange(self.action_size))
+            action = random.choice(legal_actions)
 
-        action_as_direction = action_to_direction[action]
-
-        if not action_as_direction in legal:
-            return Directions.STOP
-        else:
-            return action_as_direction
+        return action
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
