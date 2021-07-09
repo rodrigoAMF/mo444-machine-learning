@@ -26,6 +26,7 @@ class QNetwork(nn.Module):
 
         self.conv = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=5, stride=1),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=5, stride=1),
             nn.LeakyReLU(),
@@ -35,6 +36,7 @@ class QNetwork(nn.Module):
         self.conv.apply(weights_init)
 
         self.fc_input_size = self.get_fc_input_size()
+        print(self.fc_input_size)
 
         self.fc = nn.Sequential(
             nn.Linear(self.fc_input_size, 256),
