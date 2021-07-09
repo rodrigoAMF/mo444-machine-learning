@@ -12,10 +12,10 @@ from game import Agent
 from pacman import Directions
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64  # minibatch size
+BATCH_SIZE = 128  # minibatch size
 GAMMA = 0.99  # discount factor
-TAU = 1e-3  # for soft update of target parameters
-LR = 2e-4  # learning rate
+TAU = 1e-5  # for soft update of target parameters
+LR = 1e-5  # learning rate
 UPDATE_EVERY = 5  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
