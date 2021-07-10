@@ -120,14 +120,13 @@ class Environment:
                     next_state = self.convert_state_to_image(next_state)
 
                     reward = self.get_reward() - initial_reward
-                    if reward >= 100: reward = 20
-                    if reward <= -100: reward = -20
+                    if reward < -100: reward = -100
                     done = self.done()
                     agent.step(state, action, reward, next_state, done)
 
     def done(self, fast_check=False):
         if not self.game.gameOver:
-            return False
+            return 0
         else:
             if fast_check: self.game.display.finish()
-            return True
+            return 1
