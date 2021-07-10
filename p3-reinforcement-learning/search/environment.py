@@ -98,32 +98,30 @@ class Environment:
 
     def step(self, eps):
         initial_reward = self.get_reward()
+        state_pacman = self.convert_state_to_image(self.get_current_state())
+        action_pacman = 0
 
         for agentIndex, agent in enumerate(self.game.agents):
             if not self.done():
                 state = self.get_current_state()
 
                 if agentIndex == 0:
-                    state_as_image = self.convert_state_to_image(state)
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
-                    action = agent.getAction(state_as_image, legal, eps)
+                    action = agent.getAction(state_pacman, legal, eps)
+                    action_pacman = self.get_action_as_number(action)
                 else:
                     action = agent.getAction(state)
 
                 self.update_game_state(action)
 
-                if agentIndex == 0:
-                    state = state_as_image
-                    action = self.get_action_as_number(action)
-                    next_state = self.get_current_state()
-                    next_state = self.convert_state_to_image(next_state)
+        # Pacman agent learn
+        next_state = self.convert_state_to_image(self.get_current_state())
 
-                    reward = self.get_reward() - initial_reward
-                    if reward >= 100: reward = 20
-                    if reward <= -100: reward = -20
-                    done = self.done()
-                    agent.step(state, action, reward, next_state, done)
+        reward = self.get_reward() - initial_reward
+        done = self.done()
+
+        self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
 
     def done(self, fast_check=False):
         if not self.game.gameOver:
