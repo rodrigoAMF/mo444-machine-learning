@@ -12,11 +12,11 @@ from game import Agent
 from pacman import Directions
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 128  # minibatch size
+BATCH_SIZE = 32  # minibatch size
 GAMMA = 0.99  # discount factor
 TAU = 1e-5  # for soft update of target parameters
-LR = 1e-5  # learning rate
-UPDATE_EVERY = 4  # how often to update the network
+LR = 25e-5  # learning rate
+UPDATE_EVERY = 16  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -49,6 +49,8 @@ class DQNAgent(Agent):
             action_size (int): dimension of each action
             seed (int): random seed
         """
+        self.learning_rate = LR
+
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
@@ -83,7 +85,6 @@ class DQNAgent(Agent):
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
-
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
@@ -171,11 +172,16 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = np.vstack([e.state for e in experiences if e is not None])
-        next_states = np.vstack([e.next_state for e in experiences if e is not None])
-        if self.state_size[0] == 1:
-            states = np.expand_dims(states, axis=1)
-            next_states = np.expand_dims(next_states, axis=1)
+        if self.state_size[0] > 1:
+            states = np.expand_dims(np.array([e.state for e in experiences if e is not None]), axis=0)
+            next_states = np.expand_dims(np.array([e.next_state for e in experiences if e is not None]), axis=0)
+
+            states = np.vstack(states)
+            next_states = np.vstack(next_states)
+        else:
+            states = np.vstack([e.state for e in experiences if e is not None])
+            next_states = np.vstack([e.next_state for e in experiences if e is not None])
+
         states = torch.from_numpy(states).float().to(device)
         next_states = torch.from_numpy(next_states).float().to(device)
 
