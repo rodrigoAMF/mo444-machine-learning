@@ -50,16 +50,19 @@ class DQNAgent(Agent):
         self.params = params
 
         # Q-Network
-        if layout_used == "SmallClassic":
+        if layout_used == "smallClassic":
             self.qnetwork_local = QNetworkSmall(state_size, action_size, seed).to(device)
             self.qnetwork_target = QNetworkSmall(state_size, action_size, seed).to(device)
-        elif layout_used == "MediumClassic":
+        elif layout_used == "mediumClassic":
             self.qnetwork_local = QNetworkMedium(state_size, action_size, seed).to(device)
             self.qnetwork_target = QNetworkMedium(state_size, action_size, seed).to(device)
-        elif layout_used == "OriginalClassic":
+        elif layout_used == "originalClassic":
             self.qnetwork_local = QNetworkOriginal(state_size, action_size, seed).to(device)
             self.qnetwork_target = QNetworkOriginal(state_size, action_size, seed).to(device)
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=params["lr"])
+        else:
+            raise ValueError("Unkown layout", layout_used)
+        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=params["lr"],
+                                    weight_decay=params["weight_decay"], amsgrad=True)
 
         # Replay memory
         self.memory = ReplayBuffer(state_size, action_size, self.params["buffer_size"], self.params["batch_size"], seed)

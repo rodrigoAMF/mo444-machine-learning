@@ -25,13 +25,11 @@ class QNetworkSmall(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, stride=1),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 8, kernel_size=3, stride=1),
+            #nn.BatchNorm2d(8),
             nn.LeakyReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1),
+            nn.Conv2d(8, 16, kernel_size=3, stride=1),
             nn.LeakyReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1),
-            nn.LeakyReLU()
         )
         self.conv.apply(weights_init)
 
@@ -39,11 +37,11 @@ class QNetworkSmall(nn.Module):
         print("Linear layer input size: ", self.fc_input_size)
 
         self.fc = nn.Sequential(
-            nn.Linear(self.fc_input_size, 256),
+            nn.Linear(self.fc_input_size, 128),
             nn.LeakyReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(128, 64),
             nn.LeakyReLU(),
-            nn.Linear(128, self.action_size),
+            nn.Linear(64, self.action_size),
         )
 
     def get_fc_input_size(self):
@@ -74,12 +72,12 @@ class QNetworkMedium(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, stride=1),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 32, kernel_size=5, stride=1),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1),
             nn.LeakyReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.LeakyReLU()
         )
         self.conv.apply(weights_init)
@@ -124,12 +122,13 @@ class QNetworkOriginal(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=5, stride=1),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(1, 32, kernel_size=5, stride=1),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1),
+            nn.Conv2d(32, 64, kernel_size=5, stride=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.LeakyReLU()
         )
         self.conv.apply(weights_init)
@@ -138,9 +137,9 @@ class QNetworkOriginal(nn.Module):
         print("Linear layer input size: ", self.fc_input_size)
 
         self.fc = nn.Sequential(
-            nn.Linear(self.fc_input_size, 256),
+            nn.Linear(self.fc_input_size, 1024),
             nn.LeakyReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(1024, 128),
             nn.LeakyReLU(),
             nn.Linear(128, self.action_size),
         )
