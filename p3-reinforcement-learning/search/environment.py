@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from util import *
 from pacman import Directions
@@ -23,6 +24,13 @@ class Environment:
         self.pacman = dqnAgent.DQNAgent(state_size, action_size=5, learning_rate=learning_rate, seed=seed)
         self.reset()
 
+        print("Initial state:")
+        initial_state = self.convert_state_to_image(self.get_current_state())
+        initial_state = np.moveaxis(initial_state, [0, 1, 2], [-1, -3, -2])
+        plt.imshow(initial_state, cmap="gray", vmin=0, vmax=1.0)
+        plt.show()
+        print("Shape: ", initial_state.shape)
+
     def reset(self):
         self.display = textDisplay.NullGraphics()
         self.ghosts = [ghostAgents.RandomGhost(i+1) for i in range(self.layout.getNumGhosts())]
@@ -44,6 +52,7 @@ class Environment:
 
         self.agentIndex = self.game.startingIndex
         self.numAgents = len(self.game.agents)
+
 
     def get_current_state(self):
         return self.game.state.deepCopy()
@@ -76,8 +85,8 @@ class Environment:
             'P': 100
         }
 
-        for i in range(self.layout.height):
-            for j in range(self.layout.width):
+        for i in range(1, self.layout.height - 1):
+            for j in range(1, self.layout.width - 1):
                 new_state[0][i][j] = state_dict[state[i][j]]
 
         #new_state = new_state.reshape(-1)

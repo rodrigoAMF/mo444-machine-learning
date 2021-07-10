@@ -36,7 +36,7 @@ class QNetwork(nn.Module):
         self.conv.apply(weights_init)
 
         self.fc_input_size = self.get_fc_input_size()
-        print(self.fc_input_size)
+        print("Linear layer input size: ", self.fc_input_size)
 
         self.fc = nn.Sequential(
             nn.Linear(self.fc_input_size, 256),
