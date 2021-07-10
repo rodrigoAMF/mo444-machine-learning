@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -21,8 +23,14 @@ class Environment:
         self.beQuiet=True
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, params=params, seed=seed)
+        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, params=params, layout_used=layout, seed=seed)
         self.reset()
+        # To keep track of progress
+        self.wins = []
+        self.wins_window = deque(maxlen=100)
+        self.scores = []
+        self.scores_window = deque(maxlen=100)
+        self.average_scores = []
 
         print("Initial state:")
         initial_state = self.convert_state_to_image(self.get_current_state())

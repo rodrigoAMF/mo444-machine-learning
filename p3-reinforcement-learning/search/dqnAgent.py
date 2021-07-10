@@ -2,7 +2,7 @@ import numpy as np
 import random
 from collections import namedtuple, deque
 
-from model import QNetwork
+from model import QNetworkSmall, QNetworkMedium, QNetworkOriginal
 
 import torch
 import torch.nn.functional as F
@@ -35,7 +35,7 @@ direction_to_action = {
 class DQNAgent(Agent):
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, params, seed):
+    def __init__(self, state_size, action_size, params, layout_used, seed):
         """Initialize an Agent object.
 
         Params
@@ -50,8 +50,15 @@ class DQNAgent(Agent):
         self.params = params
 
         # Q-Network
-        self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
-        self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
+        if layout_used == "SmallClassic":
+            self.qnetwork_local = QNetworkSmall(state_size, action_size, seed).to(device)
+            self.qnetwork_target = QNetworkSmall(state_size, action_size, seed).to(device)
+        elif layout_used == "MediumClassic":
+            self.qnetwork_local = QNetworkMedium(state_size, action_size, seed).to(device)
+            self.qnetwork_target = QNetworkMedium(state_size, action_size, seed).to(device)
+        elif layout_used == "OriginalClassic":
+            self.qnetwork_local = QNetworkOriginal(state_size, action_size, seed).to(device)
+            self.qnetwork_target = QNetworkOriginal(state_size, action_size, seed).to(device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=params["lr"])
 
         # Replay memory
