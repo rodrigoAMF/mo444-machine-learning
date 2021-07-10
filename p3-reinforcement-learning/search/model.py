@@ -28,7 +28,7 @@ class QNetwork(nn.Module):
             nn.Conv2d(1, 32, kernel_size=5, stride=1),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
-            nn.Conv2d(32, 64, kernel_size=5, stride=1),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.LeakyReLU()

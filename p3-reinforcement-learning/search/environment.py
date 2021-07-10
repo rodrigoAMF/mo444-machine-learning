@@ -17,11 +17,11 @@ except:
 class Environment:
     def __init__(self, learning_rate, layout="mediumClassic", seed=27):
         self.layout = l.getLayout(layout)
-        state_size = [1, self.layout.height, self.layout.width]
+        self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
         self.beQuiet=True
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(state_size, action_size=5, learning_rate=learning_rate, seed=seed)
+        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, learning_rate=learning_rate, seed=seed)
         self.reset()
 
         print("Initial state:")
@@ -77,7 +77,7 @@ class Environment:
 
     def convert_state_to_image(self, state):
         state = str(state).split("\n")[:-2]
-        new_state = np.zeros((1, self.layout.height, self.layout.width))
+        new_state = np.zeros(self.state_size)
         state_dict = {
             '%': 0, '.': 225, 'o': 255,
             'G': 50, '<': 100, '>': 100,
@@ -87,7 +87,7 @@ class Environment:
 
         for i in range(1, self.layout.height - 1):
             for j in range(1, self.layout.width - 1):
-                new_state[0][i][j] = state_dict[state[i][j]]
+                new_state[0][i - 1][j - 1] = state_dict[state[i][j]]
 
         #new_state = new_state.reshape(-1)
         new_state /= 255.0
