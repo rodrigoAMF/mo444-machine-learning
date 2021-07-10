@@ -11,11 +11,6 @@ import torch.optim as optim
 from game import Agent
 from pacman import Directions
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 128  # minibatch size
-GAMMA = 0.99  # discount factor
-TAU = 1e-5  # for soft update of target parameters
-LR = 1e-5  # learning rate
 UPDATE_EVERY = 4  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -40,7 +35,7 @@ direction_to_action = {
 class DQNAgent(Agent):
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, learning_rate, seed):
+    def __init__(self, state_size, action_size, params, seed):
         """Initialize an Agent object.
 
         Params
@@ -52,28 +47,29 @@ class DQNAgent(Agent):
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
+        self.params = params
 
         # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
         self.qnetwork_target = QNetwork(state_size, action_size, seed).to(device)
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=params["lr"])
 
         # Replay memory
-        self.memory = ReplayBuffer(state_size, action_size, BUFFER_SIZE, BATCH_SIZE, seed)
-        # Initialize time step (for updating every UPDATE_EVERY steps)
+        self.memory = ReplayBuffer(state_size, action_size, self.params["buffer_size"], self.params["batch_size"], seed)
+        # Initialize time step (for updating every params["update_every"] steps)
         self.t_step = 0
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
 
-        # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % UPDATE_EVERY
+        # Learn every params["update_every"] time steps.
+        self.t_step = (self.t_step + 1) % self.params["update_every"]
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > BATCH_SIZE:
+            if len(self.memory) > self.params["batch_size"]:
                 experiences = self.memory.sample()
-                self.learn(experiences, GAMMA)
+                self.learn(experiences, self.params["gamma"])
 
     def getAction(self, state, legal_actions, eps=0.):
         """Returns actions for given state as per current policy.
@@ -128,7 +124,7 @@ class DQNAgent(Agent):
         self.optimizer.step()
 
         # ------------------- update target network ------------------- #
-        self.soft_update(self.qnetwork_local, self.qnetwork_target, TAU)
+        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.params["tau"])
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.

@@ -25,12 +25,12 @@ class QNetwork(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=5, stride=1),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, 16, kernel_size=5, stride=1),
+            nn.BatchNorm2d(16),
             nn.LeakyReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1),
             nn.LeakyReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1),
             nn.LeakyReLU()
         )
         self.conv.apply(weights_init)
