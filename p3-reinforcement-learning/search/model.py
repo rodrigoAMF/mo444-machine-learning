@@ -24,35 +24,18 @@ class QNetworkSmall(nn.Module):
         self.action_size = action_size
         self.seed = torch.manual_seed(seed)
 
-        self.conv = nn.Sequential(
-            nn.Conv2d(1, 8, kernel_size=3, stride=1),
-            #nn.BatchNorm2d(8),
-            nn.LeakyReLU(),
-            nn.Conv2d(8, 16, kernel_size=3, stride=1),
-            nn.LeakyReLU(),
-        )
-        self.conv.apply(weights_init)
-
-        self.fc_input_size = self.get_fc_input_size()
-        print("Linear layer input size: ", self.fc_input_size)
-
         self.fc = nn.Sequential(
-            nn.Linear(self.fc_input_size, 128),
+            nn.Linear(self.state_size[0], 256),
             nn.LeakyReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(256, 64),
             nn.LeakyReLU(),
             nn.Linear(64, self.action_size),
         )
 
-    def get_fc_input_size(self):
-        return self.conv(autograd.Variable(torch.zeros(1, *self.state_size))).view(1, -1).size(1)
-
 
     def forward(self, state):
         """Build a network that maps state -> action values."""
-        x = self.conv(state)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        x = self.fc(state)
 
         return x
 
@@ -72,7 +55,7 @@ class QNetworkMedium(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=5, stride=1),
+            nn.Conv2d(self.state_size[0], 32, kernel_size=5, stride=1),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=3, stride=1),

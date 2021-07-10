@@ -17,10 +17,14 @@ except:
     _BOINC_ENABLED = False
 
 class Environment:
-    def __init__(self, params, layout="mediumClassic", seed=27):
+    def __init__(self, params, layout="mediumClassic", use_features=False, seed=27):
         self.layout = l.getLayout(layout)
-        self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
+        if not use_features:
+            self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
+        else:
+            self.state_size = [16]
         self.beQuiet=True
+        self.use_features = use_features
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
         self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, params=params, layout_used=layout, seed=seed)
@@ -85,7 +89,7 @@ class Environment:
 
     def convert_state_to_image(self, state):
         state = str(state).split("\n")[:-2]
-        new_state = np.zeros(self.state_size)
+        new_state = np.zeros([1, self.layout.height - 2, self.layout.width - 2])
         state_dict = {
             '%': 0, '.': 225, 'o': 255,
             'G': 50, '<': 100, '>': 100,
@@ -102,6 +106,49 @@ class Environment:
 
         return new_state
 
+    def convert_state_to_features(self, state):
+        pacman_position = state.getPacmanPosition()
+        ghosts_position = state.getGhostPositions()
+
+        def has_food(x, y, state):
+            if x >= self.layout.width or x < 0:
+                return 0
+            elif y >= self.layout.height or y < 0:
+                return 0
+            else:
+                return int(state.hasFood(x, y))
+
+        foods = []
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if i == 0 and j == 0: continue
+                x, y = pacman_position[0] + i, pacman_position[1] + j
+                foods.append(has_food(x, y, state))
+
+        pacman_position = np.array(pacman_position, dtype=np.float32)
+        pacman_position[0] = pacman_position[0] / self.layout.width
+        pacman_position[1] = pacman_position[1] / self.layout.height
+
+        ghosts_position = np.array(ghosts_position, dtype=np.float32)
+        ghosts_position[:, 0] = ghosts_position[:, 0] / self.layout.width
+        ghosts_position[:, 1] = ghosts_position[:, 1] / self.layout.height
+
+        def euclidian_distance(x1, x2):
+            return np.sqrt((x2[0] - x1[0]) ** 2 + (x2[1] - x1[1]) ** 2)
+
+        distance_ghosts = []
+        for ghost_position in ghosts_position:
+            distance_ghosts.append(euclidian_distance(pacman_position, ghost_position))
+        distance_ghosts = np.array(distance_ghosts)
+
+        features = np.hstack((pacman_position, ghosts_position[0]))
+        for ghost_position in ghosts_position[1:]:
+            features = np.hstack((features, ghost_position))
+        features = np.hstack((features, distance_ghosts))
+        features = np.hstack((features, foods))
+
+        return features
+
     def get_action_as_number(self, action):
         direction_to_action = {
             Directions.NORTH: 0,
@@ -115,7 +162,10 @@ class Environment:
 
     def step(self, eps):
         initial_reward = self.get_reward()
-        state_pacman = self.convert_state_to_image(self.get_current_state())
+        if not self.use_features:
+            state_pacman = self.convert_state_to_image(self.get_current_state())
+        else:
+            state_pacman = self.convert_state_to_features(self.get_current_state())
         action_pacman = 0
 
         for agentIndex, agent in enumerate(self.game.agents):
@@ -133,7 +183,10 @@ class Environment:
                 self.update_game_state(action)
 
         # Pacman agent learn
-        next_state = self.convert_state_to_image(self.get_current_state())
+        if not self.use_features:
+            next_state = self.convert_state_to_image(self.get_current_state())
+        else:
+            next_state = self.convert_state_to_features(self.get_current_state())
 
         reward = self.get_reward() - initial_reward
         done = self.done()
