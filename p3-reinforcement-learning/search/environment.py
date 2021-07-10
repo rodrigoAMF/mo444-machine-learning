@@ -14,13 +14,13 @@ except:
     _BOINC_ENABLED = False
 
 class Environment:
-    def __init__(self, layout="mediumClassic", seed=27):
+    def __init__(self, learning_rate, layout="mediumClassic", seed=27):
         self.layout = l.getLayout(layout)
         state_size = [1, self.layout.height, self.layout.width]
         self.beQuiet=True
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(state_size, action_size=5, seed=seed)
+        self.pacman = dqnAgent.DQNAgent(state_size, action_size=5, learning_rate=learning_rate, seed=seed)
         self.reset()
 
     def reset(self):
