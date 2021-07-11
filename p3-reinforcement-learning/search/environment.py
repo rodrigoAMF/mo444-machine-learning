@@ -22,7 +22,7 @@ class Environment:
         if not use_features:
             self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [11]
+            self.state_size = [17]
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
@@ -150,7 +150,27 @@ class Environment:
         distances_pacman = np.array(distances_pacman)
         distances = np.array(distances)
 
+        # Check if ghosts are scared
+        scared_timers = []
+        for agent in state.data.agentStates[1:]:
+            scared_timers.append(agent.scaredTimer)
+        scared_timers = np.array(scared_timers)
+        distances_scareds = distances[scared_timers > 0]
+        distances_pacman_scareds = distances_pacman[scared_timers > 0]
+
         distance_closest_ghost = distances_pacman[np.argmin(distances)]
+        num_ghosts_close = len([True for distance in distances_pacman if distance[0] <= 2 and distance[1] <= 2])
+        num_ghosts_2steps_away = len(distances[distances <= 2])
+        num_ghosts_1steps_away = len(distances[distances <= 1])
+
+        if len(distances_scareds) > 0:
+            distance_closest_scared_ghost = distances_pacman_scareds[np.argmin(distances_scareds)]
+            num_ghosts_scared_2steps_away = len(distances_scareds[distances_scareds <= 2])
+            num_ghosts_scared_1steps_away = len(distances_scareds[distances_scareds <= 1])
+        else:
+            distance_closest_scared_ghost = np.array([width, height])
+            num_ghosts_scared_2steps_away = 0
+            num_ghosts_scared_1steps_away = 0
 
         ghost_near_2 = distance_closest_ghost[0] <= 2 and distance_closest_ghost[1] <= 2
         ghost_near_1 = distance_closest_ghost[0] <= 1 and distance_closest_ghost[1] <= 1
@@ -173,25 +193,21 @@ class Environment:
         else:
             distance_closest_capsule = np.array([width, height])
 
-        scared_timers = [0, 0]
-        # for agent in state.data.agentStates[1:]:
-        #    scared_timers.append(agent.scaredTimer)
-        scared_timers = np.array(scared_timers)
-        # If one of the ghosts is scared
-        is_scared = np.any(scared_timers) > 0
-
-
         distance_closest_food[0] = distance_closest_food[0] / width
         distance_closest_food[1] = distance_closest_food[1] / height
         distance_closest_ghost[0] = distance_closest_ghost[0] / width
         distance_closest_ghost[1] = distance_closest_ghost[1] / height
         distance_closest_capsule[0] = distance_closest_capsule[0] / width
         distance_closest_capsule[1] = distance_closest_capsule[1] / height
+        distance_closest_scared_ghost[0] = distance_closest_scared_ghost[0] / width
+        distance_closest_scared_ghost[1] = distance_closest_scared_ghost[1] / height
 
         features = np.hstack((food_near, distance_closest_food,
                               distance_closest_ghost, ghost_near_1, ghost_near_2,
+                              num_ghosts_close, num_ghosts_1steps_away, num_ghosts_2steps_away,
                               safe_eat,
-                              distance_closest_capsule, is_scared))
+                              distance_closest_capsule, distance_closest_scared_ghost,
+                              num_ghosts_scared_2steps_away, num_ghosts_scared_1steps_away))
 
         return features
 
