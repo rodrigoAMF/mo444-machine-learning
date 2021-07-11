@@ -177,11 +177,16 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = np.vstack([e.state for e in experiences if e is not None])
-        next_states = np.vstack([e.next_state for e in experiences if e is not None])
-        if self.state_size[0] == 1:
-            states = np.expand_dims(states, axis=1)
-            next_states = np.expand_dims(next_states, axis=1)
+        if self.state_size[0] > 1:
+            states = np.expand_dims(np.array([e.state for e in experiences if e is not None]), axis=0)
+            next_states = np.expand_dims(np.array([e.next_state for e in experiences if e is not None]), axis=0)
+
+            states = np.vstack(states)
+            next_states = np.vstack(next_states)
+        else:
+            states = np.vstack([e.state for e in experiences if e is not None])
+            next_states = np.vstack([e.next_state for e in experiences if e is not None])
+
         states = torch.from_numpy(states).float().to(device)
         next_states = torch.from_numpy(next_states).float().to(device)
 

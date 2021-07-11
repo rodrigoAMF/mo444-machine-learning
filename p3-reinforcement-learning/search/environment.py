@@ -20,9 +20,9 @@ class Environment:
     def __init__(self, params, layout="mediumClassic", use_features=False, seed=27):
         self.layout = l.getLayout(layout)
         if not use_features:
-            self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
+            self.state_size = [4, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [10]
+            self.state_size = [11]
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
@@ -46,7 +46,6 @@ class Environment:
         self.agents = [self.pacman] + self.ghosts
         self.game = self.rules.newGame(self.layout, self.pacman, self.ghosts,
                                        self.display, self.beQuiet, self.catchExceptions)
-
         # inform learning agents of the game start
         for i in range(len(self.agents)):
             agent = self.game.agents[i]
@@ -61,7 +60,9 @@ class Environment:
 
         self.agentIndex = self.game.startingIndex
         self.numAgents = len(self.game.agents)
-
+        self.num_actions = 0
+        self.last_states = deque(maxlen=4)
+        self.last_next_states = deque(maxlen=4)
 
     def get_current_state(self):
         return self.game.state.deepCopy()
@@ -118,6 +119,8 @@ class Environment:
         pacman_position = np.array(state.getPacmanPosition(), dtype=np.float32)
         ghosts_position = np.array(state.getGhostPositions(), dtype=np.float32)
         capsules_position = np.array(state.getCapsules(), dtype=np.float32)
+        number_of_foods = self.layout.totalFood
+        number_of_ghosts = self.layout.numGhosts
         width = self.layout.width
         height = self.layout.height
 
@@ -138,6 +141,8 @@ class Environment:
         foods_positions = np.array(foods_positions)
         distances_pacman = np.array(distances_pacman)
         distances = np.array(distances)
+
+        number_of_foods_remaining = len(foods_positions)/number_of_foods
 
         if len(foods_positions) > 0:
             distance_closest_food = distances_pacman[np.argmin(distances)]
@@ -166,9 +171,9 @@ class Environment:
         distances_pacman_scareds = distances_pacman[scared_timers > 0]
 
         distance_closest_ghost = distances_pacman[np.argmin(distances)]
-        num_ghosts_close = len([True for distance in distances_pacman if distance[0] <= 2 and distance[1] <= 2])
-        num_ghosts_2steps_away = len(distances[distances <= 2])
-        num_ghosts_1steps_away = len(distances[distances <= 1])
+        num_ghosts_close = len([True for distance in distances_pacman if distance[0] <= 2 and distance[1] <= 2])/number_of_ghosts
+        num_ghosts_2steps_away = len(distances[distances <= 2])/number_of_ghosts
+        num_ghosts_1steps_away = len(distances[distances <= 1])/number_of_ghosts
 
         if len(distances_scareds) > 0:
             distance_closest_scared_ghost = distances_pacman_scareds[np.argmin(distances_scareds)]
@@ -218,8 +223,9 @@ class Environment:
                               num_ghosts_scared_2steps_away, num_ghosts_scared_1steps_away))
         """
 
-        features = np.hstack((food_near, distance_closest_food,
+        features = np.hstack((food_near, distance_closest_food, number_of_foods_remaining,
                               distance_closest_ghost, ghost_near_1, ghost_near_2,
+                              #num_ghosts_close, num_ghosts_1steps_away, num_ghosts_2steps_away,
                               safe_eat, distance_closest_capsule))
 
         return features
@@ -236,9 +242,11 @@ class Environment:
         return direction_to_action[action]
 
     def step(self, eps):
+        self.num_actions += 1
         initial_reward = self.get_reward()
         if not self.use_features:
             state_pacman = self.convert_state_to_image(self.get_current_state())
+            self.last_states.append(state_pacman)
         else:
             state_pacman = self.convert_state_to_features(self.get_current_state())
         action_pacman = 0
@@ -250,8 +258,17 @@ class Environment:
                 if agentIndex == 0:
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
-                    action = agent.getAction(state_pacman, legal, eps)
-                    action_pacman = self.get_action_as_number(action)
+
+                    if not self.use_features:
+                        if self.num_actions > 5:
+                            state_pacman = np.array(list(self.last_states))[:, 0, :, :]
+                            action = agent.getAction(state_pacman, legal, eps)
+                            action_pacman = self.get_action_as_number(action)
+                        else:
+                            action = random.choice(legal)
+                    else:
+                        action = agent.getAction(state_pacman, legal, eps)
+                        action_pacman = self.get_action_as_number(action)
                 else:
                     action = agent.getAction(state)
 
@@ -260,13 +277,19 @@ class Environment:
         # Pacman agent learn
         if not self.use_features:
             next_state = self.convert_state_to_image(self.get_current_state())
+            self.last_next_states.append(next_state)
         else:
             next_state = self.convert_state_to_features(self.get_current_state())
 
         reward = self.get_reward() - initial_reward
         done = self.done()
 
-        self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
+        if not self.use_features:
+            if self.num_actions > 5:
+                next_state = np.array(list(self.last_next_states))[:, 0, :, :]
+                self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
+        else:
+            self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
 
     def done(self, fast_check=False):
         if not self.game.gameOver:
