@@ -59,6 +59,7 @@ class QNetworkMedium(nn.Module):
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=3, stride=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.LeakyReLU()
@@ -69,9 +70,9 @@ class QNetworkMedium(nn.Module):
         print("Linear layer input size: ", self.fc_input_size)
 
         self.fc = nn.Sequential(
-            nn.Linear(self.fc_input_size, 256),
+            nn.Linear(self.fc_input_size, 512),
             nn.LeakyReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(512, 128),
             nn.LeakyReLU(),
             nn.Linear(128, self.action_size),
         )
@@ -105,7 +106,7 @@ class QNetworkOriginal(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.conv = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=5, stride=1),
+            nn.Conv2d(self.state_size[0], 32, kernel_size=5, stride=1),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             nn.Conv2d(32, 64, kernel_size=5, stride=1),

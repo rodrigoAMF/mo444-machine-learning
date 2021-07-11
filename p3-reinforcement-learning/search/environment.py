@@ -22,7 +22,7 @@ class Environment:
         if not use_features:
             self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [16]
+            self.state_size = [11]
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
@@ -107,45 +107,90 @@ class Environment:
         return new_state
 
     def convert_state_to_features(self, state):
-        pacman_position = state.getPacmanPosition()
-        ghosts_position = state.getGhostPositions()
+        def get_distance(x1, x2):
+            return x2 - x1
 
-        def has_food(x, y, state):
-            if x >= self.layout.width or x < 0:
-                return 0
-            elif y >= self.layout.height or y < 0:
-                return 0
-            else:
-                return int(state.hasFood(x, y))
+        pacman_position = np.array(state.getPacmanPosition(), dtype=np.float32)
+        ghosts_position = np.array(state.getGhostPositions(), dtype=np.float32)
+        capsules_position = np.array(state.getCapsules(), dtype=np.float32)
+        width = self.layout.width
+        height = self.layout.height
 
-        foods = []
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                if i == 0 and j == 0: continue
-                x, y = pacman_position[0] + i, pacman_position[1] + j
-                foods.append(has_food(x, y, state))
+        ## Foods
+        foods_positions = []
+        distances_pacman = []
+        distances = []
+        foods = state.getFood().data
+        for i in range(1, len(foods) - 1):
+            for j in range(1, len(foods[0]) - 1):
+                if foods[i][j]:
+                    food_position = np.array([i, j], dtype=np.float32)
+                    distance_pacman = get_distance(pacman_position, food_position)
 
-        pacman_position = np.array(pacman_position, dtype=np.float32)
-        pacman_position[0] = pacman_position[0] / self.layout.width
-        pacman_position[1] = pacman_position[1] / self.layout.height
+                    distances_pacman.append(distance_pacman)
+                    distances.append(np.abs(distance_pacman).sum())
+                    foods_positions.append(food_position)
+        foods_positions = np.array(foods_positions)
+        distances_pacman = np.array(distances_pacman)
+        distances = np.array(distances)
 
-        ghosts_position = np.array(ghosts_position, dtype=np.float32)
-        ghosts_position[:, 0] = ghosts_position[:, 0] / self.layout.width
-        ghosts_position[:, 1] = ghosts_position[:, 1] / self.layout.height
+        if len(foods_positions) > 0:
+            distance_closest_food = distances_pacman[np.argmin(distances)]
+        else:
+            distance_closest_food = np.array([width, height])
 
-        def euclidian_distance(x1, x2):
-            return np.sqrt((x2[0] - x1[0]) ** 2 + (x2[1] - x1[1]) ** 2)
-
-        distance_ghosts = []
+        ## Ghosts
+        distances_pacman = []
+        distances = []
         for ghost_position in ghosts_position:
-            distance_ghosts.append(euclidian_distance(pacman_position, ghost_position))
-        distance_ghosts = np.array(distance_ghosts)
+            distance_pacman = get_distance(pacman_position, ghost_position)
+            distances_pacman.append(distance_pacman)
+            distances.append(np.abs(distance_pacman).sum())
+        distances_pacman = np.array(distances_pacman)
+        distances = np.array(distances)
 
-        features = np.hstack((pacman_position, ghosts_position[0]))
-        for ghost_position in ghosts_position[1:]:
-            features = np.hstack((features, ghost_position))
-        features = np.hstack((features, distance_ghosts))
-        features = np.hstack((features, foods))
+        distance_closest_ghost = distances_pacman[np.argmin(distances)]
+
+        ghost_near_2 = distance_closest_ghost[0] <= 2 and distance_closest_ghost[1] <= 2
+        ghost_near_1 = distance_closest_ghost[0] <= 1 and distance_closest_ghost[1] <= 1
+        food_near = distance_closest_food[0] <= 2 and distance_closest_food[1] <= 2
+
+        safe_eat = not ghost_near_2 and not ghost_near_1 and food_near
+
+        ## Capsules
+        if len(capsules_position) > 0:
+            distances_pacman = []
+            distances = []
+            for capsule_position in capsules_position:
+                distance_pacman = get_distance(pacman_position, capsule_position)
+                distances_pacman.append(distance_pacman)
+                distances.append(np.abs(distance_pacman).sum())
+            distances_pacman = np.array(distances_pacman)
+            distances = np.array(distances)
+
+            distance_closest_capsule = distances_pacman[np.argmin(distances)]
+        else:
+            distance_closest_capsule = np.array([width, height])
+
+        scared_timers = [0, 0]
+        # for agent in state.data.agentStates[1:]:
+        #    scared_timers.append(agent.scaredTimer)
+        scared_timers = np.array(scared_timers)
+        # If one of the ghosts is scared
+        is_scared = np.any(scared_timers) > 0
+
+
+        distance_closest_food[0] = distance_closest_food[0] / width
+        distance_closest_food[1] = distance_closest_food[1] / height
+        distance_closest_ghost[0] = distance_closest_ghost[0] / width
+        distance_closest_ghost[1] = distance_closest_ghost[1] / height
+        distance_closest_capsule[0] = distance_closest_capsule[0] / width
+        distance_closest_capsule[1] = distance_closest_capsule[1] / height
+
+        features = np.hstack((food_near, distance_closest_food,
+                              distance_closest_ghost, ghost_near_1, ghost_near_2,
+                              safe_eat,
+                              distance_closest_capsule, is_scared))
 
         return features
 
