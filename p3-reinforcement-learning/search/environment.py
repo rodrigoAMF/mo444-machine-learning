@@ -32,6 +32,7 @@ class Environment:
         # To keep track of progress
         self.wins = []
         self.wins_window = deque(maxlen=100)
+        self.average_wins = []
         self.scores = []
         self.scores_window = deque(maxlen=100)
         self.average_scores = []
