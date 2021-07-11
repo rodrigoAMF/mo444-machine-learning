@@ -22,7 +22,7 @@ class Environment:
         if not use_features:
             self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [17]
+            self.state_size = [10]
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
@@ -38,11 +38,7 @@ class Environment:
         self.average_scores = []
 
         print("Initial state:")
-        initial_state = self.convert_state_to_image(self.get_current_state())
-        initial_state = np.moveaxis(initial_state, [0, 1, 2], [-1, -3, -2])
-        plt.imshow(initial_state, cmap="gray", vmin=0, vmax=1.0)
-        plt.show()
-        print("Shape: ", initial_state.shape)
+        self.show_current_state(show_shape=True)
 
     def reset(self):
         self.display = textDisplay.NullGraphics()
@@ -72,6 +68,14 @@ class Environment:
 
     def get_reward(self):
         return self.game.state.getScore()
+
+    def show_current_state(self, show_shape=False):
+        initial_state = self.convert_state_to_image(self.get_current_state())
+        initial_state = np.moveaxis(initial_state, [0, 1, 2], [-1, -3, -2])
+        plt.imshow(initial_state, cmap="gray", vmin=0, vmax=1.0)
+        plt.show()
+        if show_shape:
+            print("Shape: ", initial_state.shape)
 
     def update_game_state(self, action):
         # Execute the action
@@ -150,6 +154,9 @@ class Environment:
         distances_pacman = np.array(distances_pacman)
         distances = np.array(distances)
 
+        # food_near = distance_closest_food[0] <= 2 and distance_closest_food[1] <= 2
+        food_near = len(distances[distances <= 2])
+
         # Check if ghosts are scared
         scared_timers = []
         for agent in state.data.agentStates[1:]:
@@ -172,9 +179,10 @@ class Environment:
             num_ghosts_scared_2steps_away = 0
             num_ghosts_scared_1steps_away = 0
 
-        ghost_near_2 = distance_closest_ghost[0] <= 2 and distance_closest_ghost[1] <= 2
-        ghost_near_1 = distance_closest_ghost[0] <= 1 and distance_closest_ghost[1] <= 1
-        food_near = distance_closest_food[0] <= 2 and distance_closest_food[1] <= 2
+        #ghost_near_2 = distance_closest_ghost[0] <= 2 and distance_closest_ghost[1] <= 2
+        #ghost_near_1 = distance_closest_ghost[0] <= 1 and distance_closest_ghost[1] <= 1
+        ghost_near_2 = len(distances[distances <= 2]) > 0
+        ghost_near_1 = len(distances[distances <= 1]) > 0
 
         safe_eat = not ghost_near_2 and not ghost_near_1 and food_near
 
@@ -201,13 +209,18 @@ class Environment:
         distance_closest_capsule[1] = distance_closest_capsule[1] / height
         distance_closest_scared_ghost[0] = distance_closest_scared_ghost[0] / width
         distance_closest_scared_ghost[1] = distance_closest_scared_ghost[1] / height
-
+        """
         features = np.hstack((food_near, distance_closest_food,
                               distance_closest_ghost, ghost_near_1, ghost_near_2,
                               num_ghosts_close, num_ghosts_1steps_away, num_ghosts_2steps_away,
                               safe_eat,
                               distance_closest_capsule, distance_closest_scared_ghost,
                               num_ghosts_scared_2steps_away, num_ghosts_scared_1steps_away))
+        """
+
+        features = np.hstack((food_near, distance_closest_food,
+                              distance_closest_ghost, ghost_near_1, ghost_near_2,
+                              safe_eat, distance_closest_capsule))
 
         return features
 

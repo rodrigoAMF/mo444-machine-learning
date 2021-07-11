@@ -25,9 +25,12 @@ class QNetworkSmall(nn.Module):
         self.seed = torch.manual_seed(seed)
 
         self.fc = nn.Sequential(
-            nn.Linear(self.state_size[0], 128),
+            nn.Linear(self.state_size[0], 2048),
+            nn.BatchNorm1d(2048),
             nn.LeakyReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(2048, 512),
+            nn.LeakyReLU(),
+            nn.Linear(512, 64),
             nn.LeakyReLU(),
             nn.Linear(64, self.action_size),
         )
