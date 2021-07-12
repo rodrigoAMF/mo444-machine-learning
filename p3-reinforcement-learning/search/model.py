@@ -26,6 +26,7 @@ class QNetworkSmall(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Linear(self.state_size[0], 1024),
+            nn.BatchNorm1d(1024),
             nn.LeakyReLU(),
             nn.Linear(1024, 512),
             nn.LeakyReLU(),

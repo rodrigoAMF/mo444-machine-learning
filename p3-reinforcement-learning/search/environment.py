@@ -8,7 +8,7 @@ from pacman import Directions
 import pacman as pm
 import layout as l
 import textDisplay
-import dqnAgent, ghostAgents
+import pacmanAgents, dqnAgent, ghostAgents
 
 try:
     import boinc
@@ -17,17 +17,21 @@ except:
     _BOINC_ENABLED = False
 
 class Environment:
-    def __init__(self, params, layout="mediumClassic", use_features=False, seed=27):
+    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN", use_features=False, seed=27):
         self.layout = l.getLayout(layout)
         if not use_features:
             self.state_size = [4, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [11]
+            self.state_size = [16]
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, params=params, layout_used=layout, seed=seed)
+        self.pacman_algorithm = pacman_algorithm
+        if pacman_algorithm == "DQN":
+            self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+        else:
+            self.pacman = pacmanAgents.GreedyAgent()
         self.reset()
         # To keep track of progress
         self.wins = []
@@ -142,25 +146,34 @@ class Environment:
         distances_pacman = np.array(distances_pacman)
         distances = np.array(distances)
 
-        number_of_foods_remaining = len(foods_positions)/number_of_foods
-
+        ## Features - Food
         if len(foods_positions) > 0:
             distance_closest_food = distances_pacman[np.argmin(distances)]
         else:
             distance_closest_food = np.array([width, height])
+        number_of_foods_remaining = len(foods_positions)/number_of_foods
+        is_food_near = distance_closest_food[0] <= 2 and distance_closest_food[1] <= 2
 
         ## Ghosts
-        distances_pacman = []
+        distance_ghosts_to_pacman = []
         distances = []
         for ghost_position in ghosts_position:
             distance_pacman = get_distance(pacman_position, ghost_position)
-            distances_pacman.append(distance_pacman)
+            distance_ghosts_to_pacman.append(distance_pacman)
             distances.append(np.abs(distance_pacman).sum())
-        distances_pacman = np.array(distances_pacman)
+        distance_ghosts_to_pacman = np.array(distance_ghosts_to_pacman)
         distances = np.array(distances)
 
-        # food_near = distance_closest_food[0] <= 2 and distance_closest_food[1] <= 2
-        food_near = len(distances[distances <= 2])
+        distance_closest_ghost = distance_ghosts_to_pacman[np.argmin(distances)]
+
+        num_ghosts_close = len([True for distance in distance_ghosts_to_pacman if distance[0] <= 2 and distance[1] <= 2])/number_of_ghosts
+        #num_ghosts_2_steps_away = len(distances[distances <= 2])/number_of_ghosts
+        #num_ghosts_1_step_away = len(distances[distances <= 1])/number_of_ghosts
+
+        ghost_2_steps_away = len(distances[distances <= 2]) > 0
+        ghost_1_step_away = len(distances[distances <= 1]) > 0
+
+        is_safe_to_eat = not ghost_2_steps_away and not ghost_1_step_away and is_food_near
 
         # Check if ghosts are scared
         scared_timers = []
@@ -168,28 +181,18 @@ class Environment:
             scared_timers.append(agent.scaredTimer)
         scared_timers = np.array(scared_timers)
         distances_scareds = distances[scared_timers > 0]
-        distances_pacman_scareds = distances_pacman[scared_timers > 0]
-
-        distance_closest_ghost = distances_pacman[np.argmin(distances)]
-        num_ghosts_close = len([True for distance in distances_pacman if distance[0] <= 2 and distance[1] <= 2])/number_of_ghosts
-        num_ghosts_2steps_away = len(distances[distances <= 2])/number_of_ghosts
-        num_ghosts_1steps_away = len(distances[distances <= 1])/number_of_ghosts
+        distances_pacman_scareds = distance_ghosts_to_pacman[scared_timers > 0]
 
         if len(distances_scareds) > 0:
             distance_closest_scared_ghost = distances_pacman_scareds[np.argmin(distances_scareds)]
-            num_ghosts_scared_2steps_away = len(distances_scareds[distances_scareds <= 2])
-            num_ghosts_scared_1steps_away = len(distances_scareds[distances_scareds <= 1])
+            ghost_scared_2_steps_away = len(distances_scareds[distances_scareds <= 2]) > 0
+            ghost_scared_1_step_away = len(distances_scareds[distances_scareds <= 1]) > 0
+            is_any_ghost_scared = True
         else:
             distance_closest_scared_ghost = np.array([width, height])
-            num_ghosts_scared_2steps_away = 0
-            num_ghosts_scared_1steps_away = 0
-
-        #ghost_near_2 = distance_closest_ghost[0] <= 2 and distance_closest_ghost[1] <= 2
-        #ghost_near_1 = distance_closest_ghost[0] <= 1 and distance_closest_ghost[1] <= 1
-        ghost_near_2 = len(distances[distances <= 2]) > 0
-        ghost_near_1 = len(distances[distances <= 1]) > 0
-
-        safe_eat = not ghost_near_2 and not ghost_near_1 and food_near
+            ghost_scared_2_steps_away = False
+            ghost_scared_1_step_away = False
+            is_any_ghost_scared = False
 
         ## Capsules
         if len(capsules_position) > 0:
@@ -203,30 +206,33 @@ class Environment:
             distances = np.array(distances)
 
             distance_closest_capsule = distances_pacman[np.argmin(distances)]
+            is_any_capsule_available = True
         else:
             distance_closest_capsule = np.array([width, height])
+            is_any_capsule_available = False
 
         distance_closest_food[0] = distance_closest_food[0] / width
         distance_closest_food[1] = distance_closest_food[1] / height
-        distance_closest_ghost[0] = distance_closest_ghost[0] / width
-        distance_closest_ghost[1] = distance_closest_ghost[1] / height
         distance_closest_capsule[0] = distance_closest_capsule[0] / width
         distance_closest_capsule[1] = distance_closest_capsule[1] / height
         distance_closest_scared_ghost[0] = distance_closest_scared_ghost[0] / width
         distance_closest_scared_ghost[1] = distance_closest_scared_ghost[1] / height
+        distance_ghosts_to_pacman[:, 0] = distance_ghosts_to_pacman[:, 0] / width
+        distance_ghosts_to_pacman[:, 1] = distance_ghosts_to_pacman[:, 1] / height
         """
-        features = np.hstack((food_near, distance_closest_food,
+        features = np.hstack((is_food_near, distance_closest_food,
                               distance_closest_ghost, ghost_near_1, ghost_near_2,
-                              num_ghosts_close, num_ghosts_1steps_away, num_ghosts_2steps_away,
-                              safe_eat,
+                              num_ghosts_close, num_ghosts_1_step_away, num_ghosts_2_steps_away,
+                              is_safe_to_eat,
                               distance_closest_capsule, distance_closest_scared_ghost,
-                              num_ghosts_scared_2steps_away, num_ghosts_scared_1steps_away))
+                              num_ghosts_scared_2_steps_away, num_ghosts_scared_1_step_away))
         """
 
-        features = np.hstack((food_near, distance_closest_food, number_of_foods_remaining,
-                              distance_closest_ghost, ghost_near_1, ghost_near_2,
-                              #num_ghosts_close, num_ghosts_1steps_away, num_ghosts_2steps_away,
-                              safe_eat, distance_closest_capsule))
+        features = np.hstack((distance_closest_food, is_food_near, is_safe_to_eat,
+                              distance_closest_ghost, ghost_1_step_away, ghost_2_steps_away,
+                              is_any_ghost_scared, distance_closest_scared_ghost, ghost_scared_1_step_away,
+                              ghost_scared_2_steps_away,
+                              is_any_capsule_available, distance_closest_capsule))
 
         return features
 
@@ -240,6 +246,28 @@ class Environment:
         }
 
         return direction_to_action[action]
+
+    def adjust_reward(self, reward):
+        rewards = {
+            "win": 500,                 # Win the game             (Default: 500)
+            "eat_capsule": 25,          # Eat a capsule            (Default: 200)
+            "eat_food": 5,              # Eat a food               (Default: 10)
+            "lose": -50,                # Lose the game            (Default: -500)
+            "walking_without_eat": -1,  # Walk without eating food (Default: -1)
+        }
+
+        if reward >= 400: # Win the game
+            reward = rewards["win"]
+        elif reward >= 100: # Eat a capsule
+            reward = rewards["eat_capsule"]
+        elif reward >= 0: # Eat a food
+            reward = rewards["eat_food"]
+        elif reward >= -10: # Walk without eating food
+            reward = rewards["walking_without_eat"]
+        else: # Lose the game
+            reward = rewards["lose"]
+
+        return reward
 
     def step(self, eps):
         self.num_actions += 1
@@ -255,7 +283,7 @@ class Environment:
             if not self.done():
                 state = self.get_current_state()
 
-                if agentIndex == 0:
+                if agentIndex == 0 and self.pacman_algorithm == "DQN":
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
 
@@ -282,14 +310,16 @@ class Environment:
             next_state = self.convert_state_to_features(self.get_current_state())
 
         reward = self.get_reward() - initial_reward
+        reward = self.adjust_reward(reward)
         done = self.done()
 
-        if not self.use_features:
-            if self.num_actions > 5:
-                next_state = np.array(list(self.last_next_states))[:, 0, :, :]
+        if self.pacman_algorithm == "DQN":
+            if not self.use_features:
+                if self.num_actions > 5:
+                    next_state = np.array(list(self.last_next_states))[:, 0, :, :]
+                    self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
+            else:
                 self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
-        else:
-            self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
 
     def done(self, fast_check=False):
         if not self.game.gameOver:
