@@ -61,8 +61,7 @@ class DQNAgent(Agent):
             self.qnetwork_target = QNetworkOriginal(state_size, action_size, seed).to(device)
         else:
             raise ValueError("Unkown layout", layout_used)
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=params["lr"],
-                                    weight_decay=params["weight_decay"], amsgrad=True)
+        self.optimizer = optim.AdamW(self.qnetwork_local.parameters(), lr=params["lr"], amsgrad=False)
 
         # Replay memory
         self.memory = ReplayBuffer(state_size, action_size, self.params["buffer_size"], self.params["batch_size"], seed)
