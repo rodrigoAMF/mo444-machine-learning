@@ -8,7 +8,7 @@ from pacman import Directions
 import pacman as pm
 import layout as l
 import textDisplay
-import pacmanAgents, dqnAgent, ghostAgents
+import pacmanAgents, QLearningAgents, dqnAgent, ghostAgents
 
 try:
     import boinc
@@ -17,19 +17,26 @@ except:
     _BOINC_ENABLED = False
 
 class Environment:
-    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN", use_features=False, seed=27):
+    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN",
+                 use_features=False, number_features=400, scaler=None, featurizer=None,
+                 seed=27, save_states=False):
         self.layout = l.getLayout(layout)
         if not use_features:
             self.state_size = [4, self.layout.height - 2, self.layout.width - 2]
         else:
-            self.state_size = [16]
+            self.state_size = [number_features]
+            self.scaler = scaler
+            self.featurizer = featurizer
         self.beQuiet=True
         self.use_features = use_features
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
         self.pacman_algorithm = pacman_algorithm
+        self.save_states = save_states
         if pacman_algorithm == "DQN":
             self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+        elif pacman_algorithm == "ApproxQLearning":
+            self.pacman = QLearningAgents.ApproximateQLearningAgent(self.state_size, action_size=4)
         else:
             self.pacman = pacmanAgents.GreedyAgent()
         self.reset()
@@ -67,6 +74,8 @@ class Environment:
         self.num_actions = 0
         self.last_states = deque(maxlen=4)
         self.last_next_states = deque(maxlen=4)
+        if self.save_states:
+            self.states = []
 
     def get_current_state(self):
         return self.game.state.deepCopy()
@@ -211,30 +220,17 @@ class Environment:
             distance_closest_capsule = np.array([width, height])
             is_any_capsule_available = False
 
-        distance_closest_food[0] = distance_closest_food[0] / width
-        distance_closest_food[1] = distance_closest_food[1] / height
-        distance_closest_capsule[0] = distance_closest_capsule[0] / width
-        distance_closest_capsule[1] = distance_closest_capsule[1] / height
-        distance_closest_scared_ghost[0] = distance_closest_scared_ghost[0] / width
-        distance_closest_scared_ghost[1] = distance_closest_scared_ghost[1] / height
-        distance_ghosts_to_pacman[:, 0] = distance_ghosts_to_pacman[:, 0] / width
-        distance_ghosts_to_pacman[:, 1] = distance_ghosts_to_pacman[:, 1] / height
-        """
-        features = np.hstack((is_food_near, distance_closest_food,
-                              distance_closest_ghost, ghost_near_1, ghost_near_2,
-                              num_ghosts_close, num_ghosts_1_step_away, num_ghosts_2_steps_away,
-                              is_safe_to_eat,
-                              distance_closest_capsule, distance_closest_scared_ghost,
-                              num_ghosts_scared_2_steps_away, num_ghosts_scared_1_step_away))
-        """
-
         features = np.hstack((distance_closest_food, is_food_near, is_safe_to_eat,
                               distance_closest_ghost, ghost_1_step_away, ghost_2_steps_away,
                               is_any_ghost_scared, distance_closest_scared_ghost, ghost_scared_1_step_away,
                               ghost_scared_2_steps_away,
                               is_any_capsule_available, distance_closest_capsule))
 
-        return features
+        if self.scaler and self.featurizer:
+            scaled = self.scaler.transform(features.reshape(1, -1))
+            return scaled[0]
+        else:
+            return features
 
     def get_action_as_number(self, action):
         direction_to_action = {
@@ -249,10 +245,10 @@ class Environment:
 
     def adjust_reward(self, reward):
         rewards = {
-            "win": 500,                 # Win the game             (Default: 500)
+            "win": 100,                 # Win the game             (Default: 500)
             "eat_capsule": 25,          # Eat a capsule            (Default: 200)
             "eat_food": 5,              # Eat a food               (Default: 10)
-            "lose": -50,                # Lose the game            (Default: -500)
+            "lose": -25,                # Lose the game            (Default: -500)
             "walking_without_eat": -1,  # Walk without eating food (Default: -1)
         }
 
@@ -279,11 +275,14 @@ class Environment:
             state_pacman = self.convert_state_to_features(self.get_current_state())
         action_pacman = 0
 
+        if self.save_states:
+            self.states.append(state_pacman)
+
         for agentIndex, agent in enumerate(self.game.agents):
             if not self.done():
                 state = self.get_current_state()
 
-                if agentIndex == 0 and self.pacman_algorithm == "DQN":
+                if agentIndex == 0 and (self.pacman_algorithm == "DQN" or self.pacman_algorithm == "ApproxQLearning"):
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
 
@@ -313,7 +312,7 @@ class Environment:
         reward = self.adjust_reward(reward)
         done = self.done()
 
-        if self.pacman_algorithm == "DQN":
+        if self.pacman_algorithm == "DQN" or self.pacman_algorithm == "ApproxQLearning":
             if not self.use_features:
                 if self.num_actions > 5:
                     next_state = np.array(list(self.last_next_states))[:, 0, :, :]
