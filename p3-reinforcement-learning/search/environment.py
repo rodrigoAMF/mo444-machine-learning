@@ -27,7 +27,7 @@ class Environment:
         self.use_features = use_features
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=5, params=params, layout_used=layout, seed=seed)
+        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
         self.reset()
         # To keep track of progress
         self.wins = []
@@ -73,18 +73,24 @@ class Environment:
     def get_reward(self, state, done):
         if done:
             if state.data._win:
-                return 500.0
+                return 500.0*state.data.combo
             else:
-                return -100.0
-        else:
+                return -50.0
+        elif state.data.eaten_food or state.data.eaten_capsule or state.data.eaten_ghost:
             if state.data.eaten_food:
-                return 10.0
-            if state.data.eaten_capsule:
-                return 50.0
-            if state.data.eaten_ghost:
-                return 100.0
-        state.data.combo = 1
-        return -1.0
+                reward = 10.0*state.data.combo
+            elif state.data.eaten_capsule:
+                reward = 50.0*state.data.combo
+            elif state.data.eaten_ghost:
+                reward = 100.0*state.data.combo
+
+            state.data.combo += 0.2
+
+            return reward
+        else:
+            state.data.combo = 1.0
+
+            return -1.0
 
     def update_game_state(self, action):
         # Execute the action

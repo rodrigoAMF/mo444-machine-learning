@@ -368,7 +368,7 @@ class PacmanRules:
             # TODO: cache numFood?
             numFood = state.getNumFood()
             if numFood == 0 and not state.data._lose:
-                state.data.scoreChange += 100
+                state.data.scoreChange += 500
                 state.data._win = True
         else:
             state.data.eaten_food = False
@@ -447,7 +447,7 @@ class GhostRules:
 
     def collide( state, ghostState, agentIndex):
         if ghostState.scaredTimer > 0:
-            state.data.scoreChange += 100
+            state.data.scoreChange += 200
             state.data.eaten_ghost = True
             GhostRules.placeGhost(state, ghostState)
             ghostState.scaredTimer = 0
@@ -456,7 +456,7 @@ class GhostRules:
         else:
             state.data.eaten_ghost = False
             if not state.data._win:
-                state.data.scoreChange -= 100
+                state.data.scoreChange -= 500
                 state.data._lose = True
     collide = staticmethod( collide )
 
