@@ -70,8 +70,21 @@ class Environment:
     def get_current_state(self):
         return self.game.state.deepCopy()
 
-    def get_reward(self):
-        return self.game.state.getScore()
+    def get_reward(self, state, done):
+        if done:
+            if state.data._win:
+                return 500.0
+            else:
+                return -100.0
+        else:
+            if state.data.eaten_food:
+                return 10.0
+            if state.data.eaten_capsule:
+                return 50.0
+            if state.data.eaten_ghost:
+                return 100.0
+        state.data.combo = 1
+        return -1.0
 
     def update_game_state(self, action):
         # Execute the action
@@ -207,7 +220,6 @@ class Environment:
         return direction_to_action[action]
 
     def step(self, eps):
-        initial_reward = self.get_reward()
         if not self.use_features:
             state_pacman = self.convert_state_to_image(self.get_current_state())
         else:
@@ -234,8 +246,8 @@ class Environment:
         else:
             next_state = self.convert_state_to_features(self.get_current_state())
 
-        reward = self.get_reward() - initial_reward
         done = self.done()
+        reward = self.get_reward(self.game.state, done)
 
         self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
 

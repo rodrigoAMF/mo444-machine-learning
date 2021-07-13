@@ -361,6 +361,7 @@ class PacmanRules:
         # Eat food
         if state.data.food[x][y]:
             state.data.scoreChange += 10
+            state.data.eaten_food = True
             state.data.food = state.data.food.copy()
             state.data.food[x][y] = False
             state.data._foodEaten = position
@@ -369,13 +370,18 @@ class PacmanRules:
             if numFood == 0 and not state.data._lose:
                 state.data.scoreChange += 100
                 state.data._win = True
+        else:
+            state.data.eaten_food = False
         # Eat capsule
         if( position in state.getCapsules() ):
             state.data.capsules.remove( position )
             state.data._capsuleEaten = position
+            state.data.eaten_capsule = True
             # Reset all ghosts' scared timers
             for index in range( 1, len( state.data.agentStates ) ):
                 state.data.agentStates[index].scaredTimer = SCARED_TIME
+        else:
+            state.data.eaten_capsule = False
     consume = staticmethod( consume )
 
 class GhostRules:
@@ -420,27 +426,35 @@ class GhostRules:
 
     def checkDeath( state, agentIndex):
         pacmanPosition = state.getPacmanPosition()
+        colision = False
         if agentIndex == 0: # Pacman just moved; Anyone can kill him
             for index in range( 1, len( state.data.agentStates ) ):
                 ghostState = state.data.agentStates[index]
                 ghostPosition = ghostState.configuration.getPosition()
                 if GhostRules.canKill( pacmanPosition, ghostPosition ):
                     GhostRules.collide( state, ghostState, index )
+                    colision = True
         else:
             ghostState = state.data.agentStates[agentIndex]
             ghostPosition = ghostState.configuration.getPosition()
             if GhostRules.canKill( pacmanPosition, ghostPosition ):
+                colision = True
                 GhostRules.collide( state, ghostState, agentIndex )
+
+        if not colision:
+            state.data.eaten_ghost = False
     checkDeath = staticmethod( checkDeath )
 
     def collide( state, ghostState, agentIndex):
         if ghostState.scaredTimer > 0:
-            state.data.scoreChange += 50
+            state.data.scoreChange += 100
+            state.data.eaten_ghost = True
             GhostRules.placeGhost(state, ghostState)
             ghostState.scaredTimer = 0
             # Added for first-person
             state.data._eaten[agentIndex] = True
         else:
+            state.data.eaten_ghost = False
             if not state.data._win:
                 state.data.scoreChange -= 100
                 state.data._lose = True

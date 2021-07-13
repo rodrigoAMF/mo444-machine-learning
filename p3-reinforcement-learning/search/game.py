@@ -383,6 +383,11 @@ class GameStateData:
             self.layout = prevState.layout
             self._eaten = prevState._eaten
             self.score = prevState.score
+            # For rewards
+            self.eaten_food = prevState.eaten_food
+            self.combo = prevState.combo
+            self.eaten_ghost = prevState.eaten_ghost
+            self.eaten_capsule = prevState.eaten_capsule
 
         self._foodEaten = None
         self._foodAdded = None
@@ -400,6 +405,8 @@ class GameStateData:
         state._foodEaten = self._foodEaten
         state._foodAdded = self._foodAdded
         state._capsuleEaten = self._capsuleEaten
+        state.eaten_food = self.eaten_food
+        state.combo = self.combo
         return state
 
     def copyAgentStates( self, agentStates ):
@@ -494,6 +501,11 @@ class GameStateData:
         self.layout = layout
         self.score = 0
         self.scoreChange = 0
+        # For rewards
+        self.eaten_food = False
+        self.eaten_ghost = False
+        self.eaten_capsule = False
+        self.combo = 1
 
         self.agentStates = []
         numGhosts = 0
