@@ -80,7 +80,7 @@ class DQNAgent(Agent):
                 experiences = self.memory.sample()
                 self.learn(experiences, self.params["gamma"])
 
-    def getAction(self, state, legal_actions, eps=0.):
+    def getAction(self, state, legal_actions):
         """Returns actions for given state as per current policy.
 
         Params
@@ -96,15 +96,12 @@ class DQNAgent(Agent):
         self.qnetwork_local.train()
 
         # Epsilon-greedy action selection
-        if random.random() > eps:
-            action_values = action_values.cpu().data.numpy()[0] # Action values from Neural Network
-            legal_actions = np.array([direction_to_action[action] for action in legal_actions]) # Possible action in the current state as number
-            possible_actions = action_values[legal_actions] # Values of legal actions
-            best_action_index = np.argmax(possible_actions)
-            action = legal_actions[best_action_index]
-            action = action_to_direction[action]
-        else:
-            action = random.choice(legal_actions)
+        action_values = action_values.cpu().data.numpy()[0] # Action values from Neural Network
+        legal_actions = np.array([direction_to_action[action] for action in legal_actions]) # Possible action in the current state as number
+        possible_actions = action_values[legal_actions] # Values of legal actions
+        best_action_index = np.argmax(possible_actions)
+        action = legal_actions[best_action_index]
+        action = action_to_direction[action]
 
         return action
 

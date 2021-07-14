@@ -36,6 +36,10 @@ class Environment:
         self.scores = []
         self.scores_window = deque(maxlen=100)
         self.average_scores = []
+        self.foods_eaten_window = deque(maxlen=100)
+        self.average_foods_eaten = []
+        self.num_actions_window = deque(maxlen=100)
+        self.average_num_actions = []
 
         print("Initial state:")
         initial_state = self.convert_state_to_image(self.get_current_state())
@@ -65,6 +69,8 @@ class Environment:
 
         self.agentIndex = self.game.startingIndex
         self.numAgents = len(self.game.agents)
+        self.num_actions = 0
+        self.foods_eaten = 0
 
 
     def get_current_state(self):
@@ -100,6 +106,7 @@ class Environment:
                     return -50.0
             elif state.data.eaten_food or state.data.eaten_capsule or state.data.eaten_ghost:
                 if state.data.eaten_food:
+                    self.foods_eaten += 1
                     reward = 10.0
                 elif state.data.eaten_capsule:
                     reward = 50.0
@@ -247,7 +254,8 @@ class Environment:
 
         return direction_to_action[action]
 
-    def step(self, eps):
+    def step(self):
+        self.num_actions += 1
         if not self.use_features:
             state_pacman = self.convert_state_to_image(self.get_current_state())
         else:
@@ -261,7 +269,7 @@ class Environment:
                 if agentIndex == 0:
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
-                    action = agent.getAction(state_pacman, legal, eps)
+                    action = agent.getAction(state_pacman, legal)
                     action_pacman = self.get_action_as_number(action)
                 else:
                     action = agent.getAction(state)
@@ -283,5 +291,26 @@ class Environment:
         if not self.game.gameOver:
             return False
         else:
-            if fast_check: self.game.display.finish()
+            if not fast_check: self.game.display.finish()
             return True
+
+    def compute_scores(self):
+        self.scores.append(self.game.state.getScore())
+        self.scores_window.append(self.game.state.getScore())
+
+        self.wins.append(self.game.state.isWin())
+        self.wins_window.append(self.game.state.isWin())
+
+        self.foods_eaten_window.append(self.foods_eaten)
+        self.num_actions_window.append(self.num_actions)
+
+        average_score = sum(self.scores_window) / float(len(self.scores_window))
+        average_foods_eaten = sum(self.foods_eaten_window) / float(len(self.foods_eaten_window))
+        average_num_actions = sum(self.num_actions_window) / float(len(self.num_actions_window))
+        winrate = sum(self.wins_window) / float(len(self.wins_window)) * 100.0
+        self.average_scores.append(average_score)
+        self.average_foods_eaten.append(average_foods_eaten)
+        self.average_num_actions.append(average_num_actions)
+        self.average_wins.append(winrate)
+
+        return average_score, average_foods_eaten, average_num_actions, winrate
