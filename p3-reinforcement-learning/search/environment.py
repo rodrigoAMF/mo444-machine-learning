@@ -71,26 +71,48 @@ class Environment:
         return self.game.state.deepCopy()
 
     def get_reward(self, state, done):
-        if done:
-            if state.data._win:
-                return 500.0*state.data.combo
+        if self.layout == "smallClassic":
+            if done:
+                if state.data._win:
+                    return 500.0 * state.data.combo
+                else:
+                    return -50.0
+            elif state.data.eaten_food or state.data.eaten_capsule or state.data.eaten_ghost:
+                if state.data.eaten_food:
+                    reward = 10.0 * state.data.combo
+                elif state.data.eaten_capsule:
+                    reward = 50.0 * state.data.combo
+                elif state.data.eaten_ghost:
+                    reward = 100.0 * state.data.combo
+
+                state.data.combo += 0.2
+
+                return reward
             else:
-                return -50.0
-        elif state.data.eaten_food or state.data.eaten_capsule or state.data.eaten_ghost:
-            if state.data.eaten_food:
-                reward = 10.0*state.data.combo
-            elif state.data.eaten_capsule:
-                reward = 50.0*state.data.combo
-            elif state.data.eaten_ghost:
-                reward = 100.0*state.data.combo
+                state.data.combo = 1.0
 
-            state.data.combo += 0.2
-
-            return reward
+                return -1.0
         else:
-            state.data.combo = 1.0
+            if done:
+                if state.data._win:
+                    return 500.0*state.data.combo
+                else:
+                    return -50.0
+            elif state.data.eaten_food or state.data.eaten_capsule or state.data.eaten_ghost:
+                if state.data.eaten_food:
+                    reward = 10.0
+                elif state.data.eaten_capsule:
+                    reward = 50.0
+                elif state.data.eaten_ghost:
+                    reward = 100.0
 
-            return -1.0
+                state.data.combo += 0.2
+
+                return reward
+            else:
+                state.data.combo = 1.0
+
+                return -1.0
 
     def update_game_state(self, action):
         # Execute the action

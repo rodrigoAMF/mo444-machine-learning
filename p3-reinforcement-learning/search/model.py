@@ -101,12 +101,21 @@ class QNetworkMedium(nn.Module):
         self.action_size = action_size
         self.seed = torch.manual_seed(seed)
 
+        self.noisy_layers = [
+            NoisyLinear(self.state_size[0], 512),
+            NoisyLinear(512, 256),
+            NoisyLinear(256, 64),
+            NoisyLinear(64, self.action_size)
+        ]
+
         self.fc = nn.Sequential(
-            nn.Linear(self.state_size[0], 256),
+            self.noisy_layers[0],
             nn.LeakyReLU(),
-            nn.Linear(256, 64),
+            self.noisy_layers[1],
             nn.LeakyReLU(),
-            nn.Linear(64, self.action_size),
+            self.noisy_layers[2],
+            nn.LeakyReLU(),
+            self.noisy_layers[3]
         )
 
     def get_fc_input_size(self):
@@ -135,12 +144,21 @@ class QNetworkOriginal(nn.Module):
         self.action_size = action_size
         self.seed = torch.manual_seed(seed)
 
+        self.noisy_layers = [
+            NoisyLinear(self.state_size[0], 512),
+            NoisyLinear(512, 256),
+            NoisyLinear(256, 64),
+            NoisyLinear(64, self.action_size)
+        ]
+
         self.fc = nn.Sequential(
-            nn.Linear(self.state_size[0], 256),
+            self.noisy_layers[0],
             nn.LeakyReLU(),
-            nn.Linear(256, 64),
+            self.noisy_layers[1],
             nn.LeakyReLU(),
-            nn.Linear(64, self.action_size),
+            self.noisy_layers[2],
+            nn.LeakyReLU(),
+            self.noisy_layers[3]
         )
 
     def get_fc_input_size(self):
