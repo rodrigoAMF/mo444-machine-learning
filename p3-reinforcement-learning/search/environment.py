@@ -36,17 +36,21 @@ class Environment:
         self.scores = []
         self.scores_window = deque(maxlen=100)
         self.average_scores = []
+        self.rewards_window = deque(maxlen=100)
+        self.average_rewards = []
         self.foods_eaten_window = deque(maxlen=100)
         self.average_foods_eaten = []
         self.num_actions_window = deque(maxlen=100)
         self.average_num_actions = []
 
-        print("Initial state:")
+        print("Initial state of the environment looks like:")
         initial_state = self.convert_state_to_image(self.get_current_state())
         initial_state = np.moveaxis(initial_state, [0, 1, 2], [-1, -3, -2])
         plt.imshow(initial_state, cmap="gray", vmin=0, vmax=1.0)
         plt.show()
-        print("Shape: ", initial_state.shape)
+        print("Layout Height: ", initial_state.shape[0])
+        print("Layout Width: ", initial_state.shape[1])
+        print()
 
     def reset(self):
         self.display = textDisplay.NullGraphics()
@@ -71,6 +75,7 @@ class Environment:
         self.numAgents = len(self.game.agents)
         self.num_actions = 0
         self.foods_eaten = 0
+        self.total_reward = 0
 
 
     def get_current_state(self):
@@ -138,7 +143,7 @@ class Environment:
 
     def convert_state_to_image(self, state):
         state = str(state).split("\n")[:-2]
-        new_state = np.zeros([1, self.layout.height - 2, self.layout.width - 2])
+        new_state = np.zeros([1, self.layout.height, self.layout.width])
         state_dict = {
             '%': 0, '.': 225, 'o': 255,
             'G': 50, '<': 100, '>': 100,
@@ -146,9 +151,9 @@ class Environment:
             'P': 100
         }
 
-        for i in range(1, self.layout.height - 1):
-            for j in range(1, self.layout.width - 1):
-                new_state[0][i - 1][j - 1] = state_dict[state[i][j]]
+        for i in range(self.layout.height):
+            for j in range(self.layout.width):
+                new_state[0][i][j] = state_dict[state[i][j]]
 
         #new_state = new_state.reshape(-1)
         new_state /= 255.0
@@ -284,6 +289,7 @@ class Environment:
 
         done = self.done()
         reward = self.get_reward(self.game.state, done)
+        self.total_reward += reward
 
         self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
 
@@ -295,8 +301,13 @@ class Environment:
             return True
 
     def compute_scores(self):
+        def calculate_average(deque_object):
+            return sum(deque_object) / float(len(deque_object))
+
         self.scores.append(self.game.state.getScore())
         self.scores_window.append(self.game.state.getScore())
+
+        self.rewards_window.append(self.total_reward)
 
         self.wins.append(self.game.state.isWin())
         self.wins_window.append(self.game.state.isWin())
@@ -304,13 +315,16 @@ class Environment:
         self.foods_eaten_window.append(self.foods_eaten)
         self.num_actions_window.append(self.num_actions)
 
-        average_score = sum(self.scores_window) / float(len(self.scores_window))
-        average_foods_eaten = sum(self.foods_eaten_window) / float(len(self.foods_eaten_window))
-        average_num_actions = sum(self.num_actions_window) / float(len(self.num_actions_window))
-        winrate = sum(self.wins_window) / float(len(self.wins_window)) * 100.0
+        average_score = calculate_average(self.scores_window)
+        average_reward = calculate_average(self.rewards_window)
+        average_foods_eaten = calculate_average(self.foods_eaten_window)
+        average_num_actions = calculate_average(self.num_actions_window)
+        winrate = calculate_average(self.wins_window) * 100.0
+
         self.average_scores.append(average_score)
+        self.average_rewards.append(average_reward)
         self.average_foods_eaten.append(average_foods_eaten)
         self.average_num_actions.append(average_num_actions)
         self.average_wins.append(winrate)
 
-        return average_score, average_foods_eaten, average_num_actions, winrate
+        return average_score, average_reward, average_foods_eaten, average_num_actions, winrate
