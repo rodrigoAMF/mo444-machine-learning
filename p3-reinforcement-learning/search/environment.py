@@ -8,7 +8,7 @@ from pacman import Directions
 import pacman as pm
 import layout as l
 import textDisplay
-import dqnAgent, ghostAgents
+import dqnAgent, ghostAgents, gaAgent
 
 try:
     import boinc
@@ -17,7 +17,8 @@ except:
     _BOINC_ENABLED = False
 
 class Environment:
-    def __init__(self, params, layout="mediumClassic", use_features=False, seed=27):
+
+    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN", use_features=True, seed=27, print_steps=False):
         self.layout = l.getLayout(layout)
         if not use_features:
             self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
@@ -27,7 +28,17 @@ class Environment:
         self.use_features = use_features
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
-        self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+        self.print_steps = print_steps
+
+        self.pacman_algorithm = pacman_algorithm
+        if pacman_algorithm == "DQN":
+            self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+        if pacman_algorithm == "GA":
+            self.pacman = gaAgent.gaAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+#            self.pacman = pacmanAgents.GreedyAgent()
+#        else:
+#            self.pacman = pacmanAgents.GreedyAgent()
+
         self.reset()
         # To keep track of progress
         self.wins = []
@@ -44,6 +55,9 @@ class Environment:
         self.average_num_actions = []
 
         print("Initial state of the environment looks like:")
+        self.print_env_maze()
+
+    def print_env_maze(self):
         initial_state = self.convert_state_to_image(self.get_current_state())
         initial_state = np.moveaxis(initial_state, [0, 1, 2], [-1, -3, -2])
         plt.imshow(initial_state, cmap="gray", vmin=0, vmax=1.0)
@@ -76,7 +90,6 @@ class Environment:
         self.num_actions = 0
         self.foods_eaten = 0
         self.total_reward = 0
-
 
     def get_current_state(self):
         return self.game.state.deepCopy()
@@ -274,6 +287,8 @@ class Environment:
                 if agentIndex == 0:
                     legal = state.getLegalPacmanActions()
                     legal.remove(Directions.STOP)
+                    if self.pacman_algorithm == "GA":
+                        self.pacman.features = state_pacman
                     action = agent.getAction(state_pacman, legal)
                     action_pacman = self.get_action_as_number(action)
                 else:
@@ -291,7 +306,10 @@ class Environment:
         reward = self.get_reward(self.game.state, done)
         self.total_reward += reward
 
-        self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
+        if self.pacman_algorithm != "GA":
+            self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
+        if self.print_steps:
+            self.print_env_maze()
 
     def done(self, fast_check=False):
         if not self.game.gameOver:
