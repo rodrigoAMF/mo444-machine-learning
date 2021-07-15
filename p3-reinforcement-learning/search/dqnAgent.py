@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import random
 from collections import namedtuple, deque
@@ -35,7 +36,8 @@ direction_to_action = {
 class DQNAgent(Agent):
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, params, layout_used, seed):
+    def __init__(self, state_size, action_size, params, layout_used, seed, test_only=True,
+                 checkpoint_to_use=None):
         """Initialize an Agent object.
 
         Params
@@ -50,23 +52,30 @@ class DQNAgent(Agent):
         self.params = params
 
         # Q-Network
-        if layout_used == "smallClassic":
-            self.qnetwork_local = QNetworkSmall(state_size, action_size, seed).to(device)
-            self.qnetwork_target = QNetworkSmall(state_size, action_size, seed).to(device)
-        elif layout_used == "mediumClassic":
-            self.qnetwork_local = QNetworkMedium(state_size, action_size, seed).to(device)
-            self.qnetwork_target = QNetworkMedium(state_size, action_size, seed).to(device)
-        elif layout_used == "originalClassic":
-            self.qnetwork_local = QNetworkOriginal(state_size, action_size, seed).to(device)
-            self.qnetwork_target = QNetworkOriginal(state_size, action_size, seed).to(device)
-        else:
-            raise ValueError("Unkown layout", layout_used)
-        self.optimizer = optim.AdamW(self.qnetwork_local.parameters(), lr=params["lr"], amsgrad=False)
+        if not test_only:
+            if layout_used == "smallClassic":
+                self.qnetwork_local = QNetworkSmall(state_size, action_size, seed).to(device)
+                self.qnetwork_target = QNetworkSmall(state_size, action_size, seed).to(device)
+            elif layout_used == "mediumClassic":
+                self.qnetwork_local = QNetworkMedium(state_size, action_size, seed).to(device)
+                self.qnetwork_target = QNetworkMedium(state_size, action_size, seed).to(device)
+            elif layout_used == "originalClassic":
+                self.qnetwork_local = QNetworkOriginal(state_size, action_size, seed).to(device)
+                self.qnetwork_target = QNetworkOriginal(state_size, action_size, seed).to(device)
+            else:
+                raise ValueError("Unkown layout", layout_used)
+            self.optimizer = optim.AdamW(self.qnetwork_local.parameters(), lr=params["lr"], amsgrad=False)
 
-        # Replay memory
-        self.memory = ReplayBuffer(state_size, action_size, self.params["buffer_size"], self.params["batch_size"], seed)
-        # Initialize time step (for updating every params["update_every"] steps)
-        self.t_step = 0
+            # Replay memory
+            self.memory = ReplayBuffer(state_size, action_size, self.params["buffer_size"], self.params["batch_size"], seed)
+            # Initialize time step (for updating every params["update_every"] steps)
+            self.t_step = 0
+        else:
+            if checkpoint_to_use:
+                layout_used = checkpoint_to_use
+            self.qnetwork_local = QNetworkSmall(state_size, action_size, seed).to(device)
+            weights_filename = "checkpoint_{}.pth".format(layout_used)
+            self.qnetwork_local.load_state_dict(torch.load(os.path.join("models", weights_filename)))
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory

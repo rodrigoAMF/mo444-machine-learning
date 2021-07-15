@@ -1,5 +1,6 @@
 from collections import deque
 
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -18,7 +19,8 @@ except:
 
 class Environment:
 
-    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN", use_features=True, seed=27, print_steps=False):
+    def __init__(self, params, layout="mediumClassic", pacman_algorithm="DQN", use_features=True, seed=27,
+                 print_steps=False, test_only=False, checkpoint_to_use=None):
         self.layout = l.getLayout(layout)
         if not use_features:
             self.state_size = [1, self.layout.height - 2, self.layout.width - 2]
@@ -29,10 +31,12 @@ class Environment:
         self.catchExceptions = False
         self.rules = pm.ClassicGameRules(timeout=30)
         self.print_steps = print_steps
+        self.test_only = test_only
 
         self.pacman_algorithm = pacman_algorithm
         if pacman_algorithm == "DQN":
-            self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
+            self.pacman = dqnAgent.DQNAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed,
+                                            test_only=test_only, checkpoint_to_use=checkpoint_to_use)
         if pacman_algorithm == "GA":
             self.pacman = gaAgent.gaAgent(self.state_size, action_size=4, params=params, layout_used=layout, seed=seed)
 #            self.pacman = pacmanAgents.GreedyAgent()
@@ -306,7 +310,7 @@ class Environment:
         reward = self.get_reward(self.game.state, done)
         self.total_reward += reward
 
-        if self.pacman_algorithm != "GA":
+        if self.pacman_algorithm != "GA" and not self.test_only:
             self.pacman.step(state_pacman, action_pacman, reward, next_state, done)
         if self.print_steps:
             self.print_env_maze()
@@ -346,3 +350,22 @@ class Environment:
         self.average_wins.append(winrate)
 
         return average_score, average_reward, average_foods_eaten, average_num_actions, winrate
+
+    def choose_random_position_for_ghosts(self):
+        state = self.convert_state_to_image(self.get_current_state())
+        state = state > 0.39216
+        available_positions = []
+        for i in range(self.layout.height):
+            for j in range(self.layout.width):
+                if state[0][i][j]:
+                    available_positions.append((False, (j, self.layout.height - 1 - i)))
+
+        import random
+
+        return random.sample(available_positions, len(self.agents) - 1)
+
+    def set_random_positions_to_ghosts(self):
+        positions = self.choose_random_position_for_ghosts()
+
+        for i, position in enumerate(positions):
+            self.layout.agentPositions[i + 1] = position
